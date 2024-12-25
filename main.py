@@ -1,4 +1,5 @@
-from src.frames_extractor import FramesExtractor
+from frames_extractor import FramesExtractor
+
 from src.keys_extraction import KeysExtractorThroughLines
 
 
