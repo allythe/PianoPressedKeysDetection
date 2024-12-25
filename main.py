@@ -16,7 +16,7 @@ class PressedKeysDetectionPipeline():
         self.video_type = params["video_type"]
 
         # lines extraction / mapping to the real piano shape
-        self.frames_extractor = FramesExtractor
+        self.frames_extractor = FramesExtractor(params["frame_per_second"])
 
         self.keys_extraction_type = params["keys_extraction_type"]
         self.keys_extractor = get_keys_extractor(self.keys_extraction_type)
