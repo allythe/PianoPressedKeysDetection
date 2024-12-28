@@ -1,5 +1,5 @@
 from frames_extractor import FramesExtractor
-
+from hands_extractor import HandsExtractor
 from src.keys_extraction import KeysExtractorThroughLines
 
 
@@ -22,18 +22,28 @@ class PressedKeysDetectionPipeline():
         self.keys_extraction_type = params["keys_extraction_type"]
         self.keys_extractor = get_keys_extractor(self.keys_extraction_type)
 
-        self.hands_extractor = None
+        # Initialize the HandsExtractor
+        self.hands_extractor = HandsExtractor()
+        # Static background frame to be subtracted
+        self.background_frame = params["background_frame"]
+
         self.fingers_extractor = None
         self.pressed_keys_extractor = None
 
     def __extract_frames(self):
-        self.frames = self.frames_extractor(self.video_link)
+        self.frames = self.frames_extractor(self.video_link) # instead of link this should be the path.
 
     def __extract_keys(self):
         self.keys_coords = self.keys_extractor(self.frames)
 
     def __extract_hands(self):
-        self.hands_coords = self.hands_extractor(self.frames, self.keys_coords)
+        """
+        Extract hands from the frames using the HandsExtractor.
+        """
+        self.hands_coords = []
+        for frame in self.frames:
+            hands_mask = self.hands_extractor.extract_hands_mask(frame, self.background_frame)
+            self.hands_coords.append(hands_mask)
 
     def __extract_fingers(self):
         self.fingers_coords = self.fingers_extractor(self.hands_coords)
