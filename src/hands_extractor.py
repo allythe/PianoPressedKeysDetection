@@ -2,41 +2,52 @@ import cv2
 import numpy as np
 import os
 class HandsExtractor:
+    
     def __init__(self):
         # Define the lower and upper bounds for the YCrCb color filter
-        # These values help detect skin color
         self.lower_ycrcb = np.array([0, 133, 77], dtype=np.uint8)
         self.upper_ycrcb = np.array([255, 173, 127], dtype=np.uint8)
-
+        """
+        values on paper 
+        self.lower_ycrcb = np.array([70, 141, 0], dtype=np.uint8)  # Y_MIN, Cr_MIN, Cb_MIN
+        self.upper_ycrcb = np.array([198, 255, 256], dtype=np.uint8)  # Y_MAX, Cr_MAX, Cb_MAX
+        """
     def extract_hands_mask(self, frame, background):
-        """
-        Extract a binary mask of hands from the given frame with refined processing.
-
-        Args:
-            frame (numpy.ndarray): The current frame of the video.
-            background (numpy.ndarray): The static background image without hands.
-
-        Returns:
-            numpy.ndarray: A refined binary mask where hands are white (255) and the rest is black (0).
-        """
-        # Background subtraction
+        # 1. Arka plan çıkarımı
         diff = cv2.absdiff(frame, background)
         diff_gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(diff_gray, 30, 255, cv2.THRESH_BINARY)
+        diff_gray = cv2.GaussianBlur(diff_gray, (5, 5), 0)  # Gürültüyü azalt
+        _, thresh = cv2.threshold(diff_gray, 50, 255, cv2.THRESH_BINARY)  # Daha yüksek eşik
 
-        # Skin color filtering in YCrCb space
+        # 2. YCrCb renk filtresi
         ycrcb = cv2.cvtColor(frame, cv2.COLOR_BGR2YCrCb)
         mask = cv2.inRange(ycrcb, self.lower_ycrcb, self.upper_ycrcb)
 
-        # Combine masks
+        # 3. Maskeleri birleştir
         combined_mask = cv2.bitwise_and(thresh, mask)
 
-        # Morphological operations for noise reduction
-        kernel = np.ones((5, 5), np.uint8)
+        # 4. Morphological işlemler
+        kernel = np.ones((5, 5), np.uint8)  # Kernel boyutunu artır
+        combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
         combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_CLOSE, kernel)
-        combined_mask = cv2.erode(combined_mask, kernel, iterations=1)
 
-        return combined_mask
+        # 5. Kontur bazlı filtreleme
+        contours, _ = cv2.findContours(combined_mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+        filtered_mask = np.zeros_like(combined_mask)
+        for contour in contours:
+            if cv2.contourArea(contour) > 500:  # Daha düşük eşik
+                cv2.drawContours(filtered_mask, [contour], -1, 255, thickness=cv2.FILLED)
+        cv2.imwrite("debug_diff_gray.png", diff_gray)  # Arka plan farkı
+        cv2.imwrite("debug_thresh.png", thresh)        # Threshold sonrası
+        cv2.imwrite("debug_mask.png", mask)            # YCrCb filtresi
+        cv2.imwrite("debug_combined.png", combined_mask)  # Kombine maske
+        cv2.imwrite("debug_filtered.png", filtered_mask)  # Kontur sonrası maske
+
+        return filtered_mask
+
+
+
+
 
 
 
