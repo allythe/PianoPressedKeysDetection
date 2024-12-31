@@ -3,6 +3,7 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
+
 class FramesExtractor:
     def __init__(self, frame_per_second, deviation_threshold=1.5):
         """
@@ -96,8 +97,10 @@ class FramesExtractor:
         plt.figure(figsize=(10, 6))
         plt.plot(range(len(similarities)), similarities, marker='o', label='Similarity Scores')
         plt.axhline(mean_similarity, color='green', linestyle='--', label='Mean Similarity')
-        plt.axhline(mean_similarity + self.deviation_threshold * std_similarity, color='red', linestyle='--', label='Upper Threshold')
-        plt.axhline(mean_similarity - self.deviation_threshold * std_similarity, color='red', linestyle='--', label='Lower Threshold')
+        plt.axhline(mean_similarity + self.deviation_threshold * std_similarity, color='red', linestyle='--',
+                    label='Upper Threshold')
+        plt.axhline(mean_similarity - self.deviation_threshold * std_similarity, color='red', linestyle='--',
+                    label='Lower Threshold')
         plt.title("Frame Similarity Analysis - Middle Range Extraction")
         plt.xlabel("Frame Index")
         plt.ylabel("Similarity")
@@ -107,18 +110,23 @@ class FramesExtractor:
 
         return saved_frames
 
+
 def main():
     """
     Test the FramesExtractor class here.
     """
-    video_path = "videos/video1.mp4"
-    frame_per_second = 2  # Example: extract 2 frames per second
+    video_path = "../videos/video1.mp4"
+    frame_per_second = 25  # Example: extract 2 frames per second
     deviation_threshold = 1  # Threshold for standard deviation filtering
 
     frames_extractor = FramesExtractor(frame_per_second, deviation_threshold)
     extracted_frames = frames_extractor(video_path)
 
+    # TODO: Refika add parameter save_path to the init of FramesExtractor
+    # TODO: Alisa derive optimal frame_per_second value
+
     print(f"Extracted {len(extracted_frames)} frames. Frames saved in 'frames' folder.")
+
 
 if __name__ == "__main__":
     main()
