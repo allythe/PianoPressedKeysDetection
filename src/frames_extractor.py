@@ -3,17 +3,23 @@ import numpy as np
 import os
 import matplotlib.pyplot as plt
 
+from src.logger import logger
+
 
 class FramesExtractor:
-    def __init__(self, frame_per_second, deviation_threshold=1.5):
+    def __init__(self, frame_per_second, deviation_threshold=1.5, show_plots=False, save_frames=False):
         """
         Initializes the FramesExtractor.
 
         :param frame_per_second: Number of frames to extract per second.
         :param deviation_threshold: Threshold for standard deviation to filter frames.
         """
+        self.save_frames = save_frames
+        self.show_plots = show_plots
         self.frame_per_second = frame_per_second
         self.deviation_threshold = deviation_threshold
+        self.logger = logger
+        self.logger.info("Frames Extractor created")
 
     def _calculate_similarity(self, frame1, frame2):
         """
@@ -42,8 +48,10 @@ class FramesExtractor:
 
         # Create the frames directory based on the video name
         video_name = os.path.splitext(os.path.basename(video_path))[0]
-        output_dir = os.path.join("frames", video_name)
-        os.makedirs(output_dir, exist_ok=True)
+
+        if self.save_frames:
+            output_dir = os.path.join("frames", video_name)
+            os.makedirs(output_dir, exist_ok=True)
 
         # Open the video file
         video_capture = cv2.VideoCapture(video_path)
@@ -88,25 +96,29 @@ class FramesExtractor:
         # Filter frames in the middle range (close to the mean similarity)
         saved_frames = []
         for i, similarity in enumerate(similarities):
-            if mean_similarity - self.deviation_threshold * std_similarity <= similarity <= mean_similarity + self.deviation_threshold * std_similarity:
-                frame_filename = os.path.join(output_dir, f"frame_{i}.png")
-                cv2.imwrite(frame_filename, frames[i])
-                saved_frames.append(frame_filename)
+            if (mean_similarity - self.deviation_threshold * std_similarity <= similarity
+                    <= mean_similarity + self.deviation_threshold * std_similarity):
 
-        # Plot similarity scores
-        plt.figure(figsize=(10, 6))
-        plt.plot(range(len(similarities)), similarities, marker='o', label='Similarity Scores')
-        plt.axhline(mean_similarity, color='green', linestyle='--', label='Mean Similarity')
-        plt.axhline(mean_similarity + self.deviation_threshold * std_similarity, color='red', linestyle='--',
-                    label='Upper Threshold')
-        plt.axhline(mean_similarity - self.deviation_threshold * std_similarity, color='red', linestyle='--',
-                    label='Lower Threshold')
-        plt.title("Frame Similarity Analysis - Middle Range Extraction")
-        plt.xlabel("Frame Index")
-        plt.ylabel("Similarity")
-        plt.legend()
-        plt.grid(True)
-        plt.show()
+                if self.save_frames:
+                    frame_filename = os.path.join(output_dir, f"frame_{i}.png")
+                    cv2.imwrite(frame_filename, frames[i])
+                saved_frames.append(frames[i])
+
+        if self.show_plots:
+            # Plot similarity scores
+            plt.figure(figsize=(10, 6))
+            plt.plot(range(len(similarities)), similarities, marker='o', label='Similarity Scores')
+            plt.axhline(mean_similarity, color='green', linestyle='--', label='Mean Similarity')
+            plt.axhline(mean_similarity + self.deviation_threshold * std_similarity, color='red', linestyle='--',
+                        label='Upper Threshold')
+            plt.axhline(mean_similarity - self.deviation_threshold * std_similarity, color='red', linestyle='--',
+                        label='Lower Threshold')
+            plt.title("Frame Similarity Analysis - Middle Range Extraction")
+            plt.xlabel("Frame Index")
+            plt.ylabel("Similarity")
+            plt.legend()
+            plt.grid(True)
+            plt.show()
 
         return saved_frames
 
