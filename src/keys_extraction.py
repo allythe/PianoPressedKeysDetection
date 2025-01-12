@@ -9,22 +9,6 @@ from sklearn.cluster import DBSCAN
 
 from src.logger import logger
 
-"""
-1) find contours and select the biggest rectangle
-2) do it in the frequency domain?
-3) 
-    - find lines rectangle of the piano
-    - find lines 
-    - estimate number of white keys 
-    - find key points on the ideal piano
-    - map one into another?
- 
-"""
-
-"""
-check inv to rotation, scale
-"""
-
 
 class Key:
     def __init__(self, key_img, y_ul, x_ul, y_dr, x_dr, name):
@@ -108,9 +92,6 @@ class KeysExtractorThroughLines:
 
         # draw the biggest contour (c) in green
         cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        # cv2.imshow("biggest contour", image)
-        # cv2.waitKey(0)
-
         return x, y, w, h
 
     def _create_piano_masked(self, image, c):

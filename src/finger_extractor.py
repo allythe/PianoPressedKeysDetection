@@ -1,11 +1,21 @@
-import cv2
-import numpy as np
 import os
+
 import cv2
 import mediapipe as mp
-class FingerExtractorOpencv:
+import numpy as np
+
+from src.logger import logger
+
+
+class FingerExtractorBase:
     def __init__(self):
-        pass
+        self.logger = logger
+        self.logger.info("Hands Extractor created")
+
+
+class FingerExtractorOpencv(FingerExtractorBase):
+    def __init__(self):
+        super.__init__()
 
     def __call__(self, hand_mask):
         """
@@ -56,8 +66,6 @@ class FingerExtractorOpencv:
 
         return fingertips
 
-
-
     def find_local_extrema(self, contour):
         """
         Find local extrema points on the contour.
@@ -90,17 +98,16 @@ class FingerExtractorOpencv:
         a = np.linalg.norm(np.array(pt1) - np.array(pt3))
         b = np.linalg.norm(np.array(pt2) - np.array(pt3))
         c = np.linalg.norm(np.array(pt1) - np.array(pt2))
-        angle = np.arccos((a**2 + b**2 - c**2) / (2 * a * b))
+        angle = np.arccos((a ** 2 + b ** 2 - c ** 2) / (2 * a * b))
         return angle
 
-class FingerExtractorMediaPipe:
+
+class FingerExtractorMediaPipe(FingerExtractorBase):
     def __init__(self):
-        self.fingertips_idx= [4, 8, 12, 16, 20]
-        pass
+        super().__init__()
+        self.fingertips_idx = [4, 8, 12, 16, 20]
 
     def __call__(self, image):
-        mp_drawing = mp.solutions.drawing_utils
-        mp_drawing_styles = mp.solutions.drawing_styles
         mp_hands = mp.solutions.hands
 
         fingertips = []
@@ -110,11 +117,8 @@ class FingerExtractorMediaPipe:
                 model_complexity=0,
                 min_detection_confidence=0.5) as hands:
 
-            # Convert the BGR image to RGB before processing.
             results = hands.process(image)
 
-            # Print handedness and draw hand landmarks on the image.
-            print('Handedness:', results.multi_handedness)
             if not results.multi_hand_landmarks:
                 return fingertips
 
@@ -123,10 +127,11 @@ class FingerExtractorMediaPipe:
             for hand_landmarks in results.multi_hand_landmarks:
                 for idx, landmark in enumerate(hand_landmarks.landmark):
                     if idx in self.fingertips_idx:
-                        fingertips.append(( int(landmark.y*image_height),
-                                            int(landmark.x * image_width)))
+                        fingertips.append((int(landmark.y * image_height),
+                                           int(landmark.x * image_width)))
 
         return fingertips
+
 
 def process_masks(video_name):
     """

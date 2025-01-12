@@ -1,9 +1,10 @@
-import cv2
-import numpy as np
 import os
 
-from matplotlib import pyplot as plt
+import cv2
+import numpy as np
+
 from src.logger import logger
+
 
 class HandsExtractorBase:
     def __init__(self):
@@ -114,8 +115,8 @@ def process_video_frames(video_name, background_path):
 
 
 if __name__ == "__main__":
-    # video_name = "video1"  # Replace with the name of your video folder
-    # background_path = "frames/video1/frame_7.png"  # Replace with the path to your background image
-    # process_video_frames(video_name, background_path)
+    video_name = "video1"  # Replace with the name of your video folder
+    background_path = "frames/video1/frame_7.png"  # Replace with the path to your background image
+    process_video_frames(video_name, background_path)
 
-    test_mediapipe()
+

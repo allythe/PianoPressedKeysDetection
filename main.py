@@ -1,5 +1,3 @@
-from datetime import datetime
-
 import cv2
 import numpy as np
 from matplotlib import pyplot as plt
@@ -15,17 +13,20 @@ def get_keys_extractor(type):
     if type == "lines":
         return KeysExtractorThroughLines()
 
+
 def get_hands_extractor(type):
     if type == "opencv":
         return HandsExtractorOpencv()
     elif type == "same":
         return HandsExtractorSame()
 
+
 def get_fingers_extractor(type):
     if type == "opencv":
         return FingerExtractorOpencv()
     elif type == "mediapipe":
         return FingerExtractorMediaPipe()
+
 
 class PressedKeysDetectionPipeline():
     def __init__(self, params):
@@ -44,7 +45,6 @@ class PressedKeysDetectionPipeline():
 
         self.keys_extraction_type = params["keys_extraction_type"]
         self.keys_extractor = get_keys_extractor(self.keys_extraction_type)
-
 
         #  Initialize the HandsExtractor
         self.hands_extraction_type = params["hands_extraction_type"]
@@ -69,11 +69,11 @@ class PressedKeysDetectionPipeline():
 
     def __extract_keys(self):
         self.logger.info("Extracting keys coordinates")
-        self.white_keys_coords, self.black_keys_coords, self.frames_rot_angle\
+        self.white_keys_coords, self.black_keys_coords, self.frames_rot_angle \
             = self.keys_extractor(self.frame_without_hands)
         self.logger.info(f"Found {len(self.white_keys_coords.keys())} white keys,"
                          f" {len(self.black_keys_coords.keys())} black keys, "
-                         f"rotation angle of piano is {np.round(self.frames_rot_angle,2)} deg")
+                         f"rotation angle of piano is {np.round(self.frames_rot_angle, 2)} deg")
 
     def __rotate_one_frame(self, image, angle):
         image_center = tuple(np.array(image.shape[1::-1]) / 2)
@@ -82,7 +82,7 @@ class PressedKeysDetectionPipeline():
         return result
 
     def __rotate_frames(self):
-        self.logger.info(f"Rotating all frames by {np.round(self.frames_rot_angle,2)} deg"
+        self.logger.info(f"Rotating all frames by {np.round(self.frames_rot_angle, 2)} deg"
                          f" to make piano look parallel to the image frame")
         rotated_frames = []
         for frame in self.frames:
@@ -126,6 +126,7 @@ class PressedKeysDetectionPipeline():
         self.__rotate_frames()
         self.__extract_hands_and_fingers()
         # self.__extract_pressed_keys()
+
 
 def main():
     params = {}
