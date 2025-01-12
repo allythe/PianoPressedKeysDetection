@@ -1,12 +1,13 @@
 import cv2
 import numpy as np
 import os
-
-class FingerExtractor:
+import cv2
+import mediapipe as mp
+class FingerExtractorOpencv:
     def __init__(self):
         pass
 
-    def extract_fingers(self, hand_mask):
+    def __call__(self, hand_mask):
         """
         Extract fingertip coordinates from the given hand mask with noise reduction.
 
@@ -92,6 +93,40 @@ class FingerExtractor:
         angle = np.arccos((a**2 + b**2 - c**2) / (2 * a * b))
         return angle
 
+class FingerExtractorMediaPipe:
+    def __init__(self):
+        self.fingertips_idx= [4, 8, 12, 16, 20]
+        pass
+
+    def __call__(self, image):
+        mp_drawing = mp.solutions.drawing_utils
+        mp_drawing_styles = mp.solutions.drawing_styles
+        mp_hands = mp.solutions.hands
+
+        fingertips = []
+        with mp_hands.Hands(
+                static_image_mode=True,
+                max_num_hands=2,
+                model_complexity=0,
+                min_detection_confidence=0.5) as hands:
+
+            # Convert the BGR image to RGB before processing.
+            results = hands.process(image)
+
+            # Print handedness and draw hand landmarks on the image.
+            print('Handedness:', results.multi_handedness)
+            if not results.multi_hand_landmarks:
+                return fingertips
+
+            image_height, image_width, _ = image.shape
+
+            for hand_landmarks in results.multi_hand_landmarks:
+                for idx, landmark in enumerate(hand_landmarks.landmark):
+                    if idx in self.fingertips_idx:
+                        fingertips.append(( int(landmark.y*image_height),
+                                            int(landmark.x * image_width)))
+
+        return fingertips
 
 def process_masks(video_name):
     """
@@ -119,7 +154,7 @@ def process_masks(video_name):
         os.makedirs(visualization_dir)
 
     # Initialize the FingerExtractor
-    finger_extractor = FingerExtractor()
+    finger_extractor = FingerExtractorOpencv()
 
     # Process each mask in the masks directory
     with open(output_file, "w") as f:
