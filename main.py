@@ -4,9 +4,9 @@ import cv2
 import numpy as np
 from matplotlib import pyplot as plt
 
-from src.finger_extractor import FingerExtractor
+from src.finger_extractor import FingerExtractorOpencv, FingerExtractorMediaPipe
 from src.frames_extractor import FramesExtractor
-from src.hands_extractor import HandsExtractor
+from src.hands_extractor import HandsExtractorOpencv, HandsExtractorSame
 from src.keys_extraction import KeysExtractorThroughLines
 from src.logger import logger
 
@@ -15,12 +15,25 @@ def get_keys_extractor(type):
     if type == "lines":
         return KeysExtractorThroughLines()
 
+def get_hands_extractor(type):
+    if type == "opencv":
+        return HandsExtractorOpencv()
+    elif type == "same":
+        return HandsExtractorSame()
+
+def get_fingers_extractor(type):
+    if type == "opencv":
+        return FingerExtractorOpencv()
+    elif type == "mediapipe":
+        return FingerExtractorMediaPipe()
 
 class PressedKeysDetectionPipeline():
     def __init__(self, params):
         self.logger = logger
+        self.logger.info(params)
 
         self.video_path = params["video_path"]
+        self.plot_fingertips = params["plot_fingertips"]
 
         # # 2d - 3d - it will be needed
         # # if we will want to apply extraction of 3d coordinates
@@ -32,10 +45,14 @@ class PressedKeysDetectionPipeline():
         self.keys_extraction_type = params["keys_extraction_type"]
         self.keys_extractor = get_keys_extractor(self.keys_extraction_type)
 
-        # # Initialize the HandsExtractor
-        self.hands_extractor = HandsExtractor()
 
-        self.fingers_extractor = FingerExtractor()
+        #  Initialize the HandsExtractor
+        self.hands_extraction_type = params["hands_extraction_type"]
+        self.hands_extractor = get_hands_extractor(self.hands_extraction_type)
+
+        self.fingers_extractor_type = params["fingers_extraction_type"]
+        self.fingers_extractor = get_fingers_extractor(self.fingers_extractor_type)
+
         # self.pressed_keys_extractor = None
 
     def __extract_frames(self):
@@ -73,34 +90,31 @@ class PressedKeysDetectionPipeline():
 
         self.frames = rotated_frames
 
+    def __plot_fingertips(self, frame, fingertips):
+        vis_fingers = frame.copy()
+
+        for tip in fingertips:
+            cv2.circle(vis_fingers, tip[::-1], 10, (255, 0, 0), -1)  # Draw red circles for fingertips
+
+        plt.subplot(211)
+        plt.imshow(frame)
+
+        plt.subplot(212)
+        plt.imshow(vis_fingers)
+
+        plt.show()
+
     def __extract_hands_and_fingers(self):
         """
         Extract hands from the frames using the HandsExtractor.
         """
-
-        # TODO: try to find model which can extract fingers
         self.logger.info("Extracting hands masks and fingertips from all frames")
-        hands_masks = []
         for frame in self.frames:
-            hands_mask = self.hands_extractor.extract_hands_mask(frame, self.frame_without_hands)
-            fingertips = self.fingers_extractor.extract_fingers(hands_mask)
+            hands_mask = self.hands_extractor(frame, self.frame_without_hands)
+            fingertips = self.fingers_extractor(hands_mask)
 
-            vis_fingers = frame
-            for tip in fingertips:
-                cv2.circle(vis_fingers, tip, 10, (255, 255, 0), -1)  # Draw red circles for fingertips
-
-            plt.subplot(311)
-            plt.imshow(frame)
-
-            plt.subplot(312)
-            plt.imshow(hands_mask)
-
-            plt.subplot(313)
-            plt.imshow(vis_fingers)
-
-            plt.show()
-
-            hands_masks.append(hands_mask)
+            if self.plot_fingertips:
+                self.__plot_fingertips(frame, fingertips)
 
     def __extract_pressed_keys(self):
         self.pressed_keys = self.pressed_keys_extractor(self.fingers_coords)
@@ -118,6 +132,9 @@ def main():
     params["video_path"] = "videos/video3.mp4"
     params["frame_per_second"] = 2
     params["keys_extraction_type"] = "lines"
+    params["hands_extraction_type"] = "same"
+    params["fingers_extraction_type"] = "mediapipe"
+    params["plot_fingertips"] = True
     pipeline = PressedKeysDetectionPipeline(params)
     pipeline()
 
