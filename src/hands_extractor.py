@@ -3,18 +3,21 @@ import numpy as np
 import os
 
 from matplotlib import pyplot as plt
-
 from src.logger import logger
 
+class HandsExtractorBase:
+    def __init__(self):
+        self.logger = logger
+        self.logger.info("Hands Extractor created")
 
-class HandsExtractor:
+class HandsExtractorOpencv(HandsExtractorBase):
 
     def __init__(self, save_debug = False, show_plot = True):
+        super.__init__()
         # Define the lower and upper bounds for the YCrCb color filter
         self.lower_ycrcb = np.array([0, 133, 77], dtype=np.uint8)
         self.upper_ycrcb = np.array([255, 173, 127], dtype=np.uint8)
-        self.logger = logger
-        self.logger.info("Hands Extractor created")
+
         self.save_debug = save_debug
         self.show_plot = show_plot
 
@@ -24,7 +27,7 @@ class HandsExtractor:
         self.upper_ycrcb = np.array([198, 255, 256], dtype=np.uint8)  # Y_MAX, Cr_MAX, Cb_MAX
         """
 
-    def extract_hands_mask(self, frame, background):
+    def __call__(self, frame, background):
         # 1. Arka plan çıkarımı
         diff = cv2.absdiff(frame, background)
 
@@ -39,15 +42,6 @@ class HandsExtractor:
         # 3. Maskeleri birleştir
         combined_mask = cv2.bitwise_and(thresh, mask)
 
-        plt.subplot(221)
-        plt.imshow(thresh)
-        plt.subplot(222)
-        plt.imshow(mask)
-        plt.subplot(223)
-        plt.imshow(combined_mask)
-        plt.subplot(224)
-        plt.imshow(frame)
-        plt.show()
         # 4. Morphological işlemler
         kernel = np.ones((5, 5), np.uint8)  # Kernel boyutunu artır
         combined_mask = cv2.morphologyEx(combined_mask, cv2.MORPH_OPEN, kernel)
@@ -69,6 +63,12 @@ class HandsExtractor:
 
         return filtered_mask
 
+class HandsExtractorSame(HandsExtractorBase):
+    def __init__(self):
+        super().__init__()
+
+    def __call__(self, image, _):
+        return image
 
 def process_video_frames(video_name, background_path):
     """
@@ -92,7 +92,7 @@ def process_video_frames(video_name, background_path):
         return
 
     # Initialize the HandsExtractor
-    hands_extractor = HandsExtractor()
+    hands_extractor = HandsExtractorOpencv()
 
     # Process each frame in the frames directory
     for frame_name in sorted(os.listdir(frames_dir)):
@@ -112,7 +112,10 @@ def process_video_frames(video_name, background_path):
     print(f"All masks saved to {output_dir}.")
 
 
+
 if __name__ == "__main__":
-    video_name = "video1"  # Replace with the name of your video folder
-    background_path = "frames/video1/frame_7.png"  # Replace with the path to your background image
-    process_video_frames(video_name, background_path)
+    # video_name = "video1"  # Replace with the name of your video folder
+    # background_path = "frames/video1/frame_7.png"  # Replace with the path to your background image
+    # process_video_frames(video_name, background_path)
+
+    test_mediapipe()
