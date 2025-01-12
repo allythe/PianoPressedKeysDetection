@@ -102,7 +102,7 @@ class FramesExtractor:
                 if self.save_frames:
                     frame_filename = os.path.join(output_dir, f"frame_{i}.png")
                     cv2.imwrite(frame_filename, frames[i])
-                saved_frames.append(frames[i])
+                saved_frames.append(cv2.cvtColor(frames[i], cv2.COLOR_BGR2RGB))
 
         if self.show_plots:
             # Plot similarity scores
