@@ -28,17 +28,14 @@ def get_fingers_extractor(type):
         return FingerExtractorMediaPipe()
 
 
-class PressedKeysDetectionPipeline():
+class PressedKeysDetectionPipeline:
     def __init__(self, params):
         self.logger = logger
         self.logger.info(params)
 
         self.video_path = params["video_path"]
         self.plot_fingertips = params["plot_fingertips"]
-
-        # # 2d - 3d - it will be needed
-        # # if we will want to apply extraction of 3d coordinates
-        # self.video_type = params["video_type"]
+        self.plot_keys = params["plot_keys"]
 
         # lines extraction / mapping to the real piano shape
         self.frames_extractor = FramesExtractor(params["frame_per_second"])
@@ -62,10 +59,7 @@ class PressedKeysDetectionPipeline():
 
     def __extract_frame_without_hands(self):
         # TODO: Refika
-        self.frame_without_hands = self.frames[2]
-
-        # plt.imshow(self.frame_without_hands)
-        # plt.show()
+        self.frame_without_hands = self.frames[1]
 
     def __extract_keys(self):
         self.logger.info("Extracting keys coordinates")
@@ -74,6 +68,10 @@ class PressedKeysDetectionPipeline():
         self.logger.info(f"Found {len(self.white_keys_coords.keys())} white keys,"
                          f" {len(self.black_keys_coords.keys())} black keys, "
                          f"rotation angle of piano is {np.round(self.frames_rot_angle, 2)} deg")
+
+        if self.plot_keys:
+            self.__draw_keys_coords(self.white_keys_coords, self.frame_without_hands)
+            self.__draw_keys_coords(self.black_keys_coords, self.frame_without_hands)
 
     def __rotate_one_frame(self, image, angle):
         image_center = tuple(np.array(image.shape[1::-1]) / 2)
@@ -90,19 +88,58 @@ class PressedKeysDetectionPipeline():
 
         self.frames = rotated_frames
 
-    def __plot_fingertips(self, frame, fingertips):
+    def __plot_fingertips(self, frame, fingertips, keys_fingertips):
         vis_fingers = frame.copy()
 
         for tip in fingertips:
             cv2.circle(vis_fingers, tip[::-1], 10, (255, 0, 0), -1)  # Draw red circles for fingertips
 
-        plt.subplot(211)
-        plt.imshow(frame)
-
-        plt.subplot(212)
+        plt.title(keys_fingertips.keys())
         plt.imshow(vis_fingers)
 
         plt.show()
+
+    def __draw_keys_coords(self, keys_dict, image):
+        for key_name in keys_dict.keys():
+            key = keys_dict[key_name]
+            y_ul, x_ul, y_dr, x_dr = key.coords()
+            cv2.rectangle(image, (x_ul, y_ul), (x_dr, y_dr), (0, 255, 0), 2)
+
+        cv2.imshow("keys", image)
+        cv2.waitKey(0)
+
+    def __find_fingertips_keys(self, fingertips):
+        keys_fingertips = {}
+
+        found = np.zeros(len(fingertips))
+
+        for i, fingertip in enumerate(fingertips):
+            y, x = fingertip
+
+            for key in self.black_keys_coords.keys():
+                black_key = self.black_keys_coords[key]
+                y_ul, x_ul, y_dr, x_dr = black_key.coords()
+
+                if y_ul <= y <= y_dr and x_ul <= x <= x_dr:
+                    keys_fingertips[key] = fingertip
+                    found[i] = True
+                    break
+
+        for i, fingertip in enumerate(fingertips):
+            if found[i]:
+                continue
+            y, x = fingertip
+
+            for key in self.white_keys_coords.keys():
+                white_key = self.white_keys_coords[key]
+                y_ul, x_ul, y_dr, x_dr = white_key.coords()
+
+                if y_ul <= y <= y_dr and x_ul <= x <= x_dr:
+                    keys_fingertips[key] = fingertip
+                    found[i] = True
+                    break
+        print(found, keys_fingertips, len(fingertips), len(keys_fingertips.keys()))
+        return keys_fingertips
 
     def __extract_hands_and_fingers(self):
         """
@@ -113,8 +150,9 @@ class PressedKeysDetectionPipeline():
             hands_mask = self.hands_extractor(frame, self.frame_without_hands)
             fingertips = self.fingers_extractor(hands_mask)
 
+            keys_fingertips = self.__find_fingertips_keys(fingertips)
             if self.plot_fingertips:
-                self.__plot_fingertips(frame, fingertips)
+                self.__plot_fingertips(frame, fingertips, keys_fingertips)
 
     def __extract_pressed_keys(self):
         self.pressed_keys = self.pressed_keys_extractor(self.fingers_coords)
@@ -136,6 +174,7 @@ def main():
     params["hands_extraction_type"] = "same"
     params["fingers_extraction_type"] = "mediapipe"
     params["plot_fingertips"] = True
+    params["plot_keys"] = True
     pipeline = PressedKeysDetectionPipeline(params)
     pipeline()
 
