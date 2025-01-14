@@ -7,7 +7,7 @@ from src.logger import logger
 
 
 class FramesExtractor:
-    def __init__(self, frame_per_second, deviation_threshold=1.5, show_plots=False, save_frames=False):
+    def __init__(self, frame_per_second, max_number_frames, deviation_threshold=1.5, show_plots=False, save_frames=False):
         """
         Initializes the FramesExtractor.
 
@@ -18,6 +18,7 @@ class FramesExtractor:
         self.show_plots = show_plots
         self.frame_per_second = frame_per_second
         self.deviation_threshold = deviation_threshold
+        self.max_number_frames = max_number_frames
         self.logger = logger
         self.logger.info("Frames Extractor created")
 
@@ -67,6 +68,7 @@ class FramesExtractor:
         selected_frames = []
         first_frame = None
         frame_count = 0
+        appended_frames = 0
 
         while True:
             ret, frame = video_capture.read()
@@ -78,6 +80,7 @@ class FramesExtractor:
                 gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
                 frames.append(frame)
                 selected_frames.append(gray_frame)
+                appended_frames +=1
 
                 if first_frame is None:
                     first_frame = gray_frame
@@ -86,6 +89,8 @@ class FramesExtractor:
                     similarities.append(similarity)
 
             frame_count += 1
+            if appended_frames>self.max_number_frames:
+                break
 
         video_capture.release()
 
@@ -134,7 +139,6 @@ def main():
     frames_extractor = FramesExtractor(frame_per_second, deviation_threshold)
     extracted_frames = frames_extractor(video_path)
 
-    # TODO: Refika add parameter save_path to the init of FramesExtractor
     # TODO: Alisa derive optimal frame_per_second value
 
     print(f"Extracted {len(extracted_frames)} frames. Frames saved in 'frames' folder.")
