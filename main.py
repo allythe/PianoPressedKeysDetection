@@ -6,6 +6,7 @@ from src.finger_extractor import FingerExtractorOpencv, FingerExtractorMediaPipe
 from src.frames_extractor import FramesExtractor
 from src.hands_extractor import HandsExtractorOpencv, HandsExtractorSame
 from src.keys_extraction import KeysExtractorThroughLines
+from src.piano_extractor import PianoExtractor
 from src.logger import logger
 
 
@@ -50,6 +51,12 @@ class PressedKeysDetectionPipeline:
         self.fingers_extractor_type = params["fingers_extraction_type"]
         self.fingers_extractor = get_fingers_extractor(self.fingers_extractor_type)
 
+        # Initialize PianoExtractor
+        self.piano_extractor = PianoExtractor(
+            manual=params.get("manual_region_selection", True),
+            show_plots=params.get("show_plots", False),
+            mse_threshold=params.get("mse_threshold", 500)
+        )
         # self.pressed_keys_extractor = None
 
     def __extract_frames(self):
@@ -58,8 +65,30 @@ class PressedKeysDetectionPipeline:
         self.logger.info(f"Extracted {len(self.frames)} frames from video {self.video_path}")
 
     def __extract_frame_without_hands(self):
-        # TODO: Refika
-        self.frame_without_hands = self.frames[1]
+        self.logger.info("Extracting frame without hands")
+        if not self.frames:
+            raise ValueError("Frames have not been extracted yet. Call __extract_frames first.")
+
+        # Simulate frame paths (you can adjust this if you have actual paths)
+        frame_paths = [f"frame_{idx}.png" for idx in range(len(self.frames))]
+
+        # Use PianoExtractor to find the clear frame
+        try:
+            output_dir = "output"
+            clear_frame_path, original_file_name = self.piano_extractor.extract_clear_frame(self.frames, frame_paths, output_dir)
+
+            # Save the clear frame and its metadata
+            self.frame_without_hands = {
+                "frame": cv2.imread(clear_frame_path),  # Load the saved frame
+                "path": clear_frame_path,
+                "original_name": original_file_name
+            }
+
+            self.logger.info(f"Clear frame saved at {clear_frame_path} with original file name: {original_file_name}")
+
+        except ValueError as e:
+            self.logger.error(f"Error finding clear frame: {e}")
+            self.frame_without_hands = None
 
     def __extract_keys(self):
         self.logger.info("Extracting keys coordinates")

@@ -126,6 +126,18 @@ class FramesExtractor:
                 filtered_frames.append(saved_frames[i])  # Keep frames close to the average
 
         saved_frames = filtered_frames
+        # Check if any frames passed the final filtering
+        if not filtered_frames:
+            raise ValueError("No frames passed the final MSE filtering process. Check your MSE threshold.")
+
+        # Save the final filtered frames
+        if True:
+            output_dir = os.path.join("frames", video_name)
+            cleaned_output_dir = os.path.join(output_dir, "cleaned")
+            os.makedirs(cleaned_output_dir, exist_ok=True)
+            for idx, frame in enumerate(filtered_frames):
+                frame_filename = os.path.join(cleaned_output_dir, f"cleaned_frame_{idx}.png")
+                cv2.imwrite(frame_filename, cv2.cvtColor(frame, cv2.COLOR_RGB2BGR))  # Save final version
         if self.show_plots:
             # Plot the average frame
             plt.figure(figsize=(10, 6))
