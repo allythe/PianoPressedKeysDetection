@@ -391,10 +391,10 @@ class KeysExtractorThroughLines:
                     if cur_dif > max_dif:
                         max_dif = cur_dif
                         x_dr_b = x_dr_b + i
-                if y_dr_b>0:
-                   black_key = BlackKey(masked_piano[y_ul_b: y_dr_b, x_ul_b:x_dr_b],
+                if y_dr_b > 0:
+                    black_key = BlackKey(masked_piano[y_ul_b: y_dr_b, x_ul_b:x_dr_b],
                                          y_ul_b, x_ul_b, y_dr_b, x_dr_b, name_cur)
-                   black_keys[name_cur] = black_key
+                    black_keys[name_cur] = black_key
 
         for key in black_keys.keys():
             print(black_keys[key].coords())
@@ -428,7 +428,6 @@ class KeysExtractorThroughLines:
 
         self.logger.info(f"The width of white key is {white_key_w}")
         return image, white_key_w
-
 
     def _find_orientation(self, image, y, h):
         mask = cv2.adaptiveThreshold(image, 255,
