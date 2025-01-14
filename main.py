@@ -7,6 +7,7 @@ from src.frames_extractor import FramesExtractor
 from src.hands_extractor import HandsExtractorOpencv, HandsExtractorSame
 from src.keys_extraction import KeysExtractorThroughLines
 from src.logger import logger
+from src.pressed_key_extractor import PressedKeyExtractorMediaPipeZ
 
 
 def get_keys_extractor(type):
@@ -26,6 +27,11 @@ def get_fingers_extractor(type):
         return FingerExtractorOpencv()
     elif type == "mediapipe":
         return FingerExtractorMediaPipe()
+
+
+def get_pressed_key_extractor(type):
+    if type == "mediapipez":
+        return PressedKeyExtractorMediaPipeZ()
 
 
 class PressedKeysDetectionPipeline:
@@ -50,7 +56,8 @@ class PressedKeysDetectionPipeline:
         self.fingers_extractor_type = params["fingers_extraction_type"]
         self.fingers_extractor = get_fingers_extractor(self.fingers_extractor_type)
 
-        # self.pressed_keys_extractor = None
+        self.pressed_key_extraction_type = params["pressed_key_extraction_type"]
+        self.pressed_keys_extractor = get_pressed_key_extractor(self.pressed_key_extraction_type)
 
     def __extract_frames(self):
         self.logger.info("Extracting frames from video")
@@ -59,7 +66,7 @@ class PressedKeysDetectionPipeline:
 
     def __extract_frame_without_hands(self):
         # TODO: Refika
-        self.frame_without_hands = self.frames[1]
+        self.frame_without_hands = self.frames[2]
 
     def __extract_keys(self):
         self.logger.info("Extracting keys coordinates")
@@ -91,8 +98,9 @@ class PressedKeysDetectionPipeline:
     def __plot_fingertips(self, frame, fingertips, keys_fingertips):
         vis_fingers = frame.copy()
 
-        for tip in fingertips:
-            cv2.circle(vis_fingers, tip[::-1], 10, (255, 0, 0), -1)  # Draw red circles for fingertips
+        for fingertip in fingertips:
+            x, y = fingertip.x, fingertip.y
+            cv2.circle(vis_fingers, (x, y), 10, (255, 0, 0), -1)  # Draw red circles for fingertips
 
         plt.title(keys_fingertips.keys())
         plt.imshow(vis_fingers)
@@ -114,7 +122,7 @@ class PressedKeysDetectionPipeline:
         found = np.zeros(len(fingertips))
 
         for i, fingertip in enumerate(fingertips):
-            y, x = fingertip
+            y, x = fingertip.y, fingertip.x
 
             for key in self.black_keys_coords.keys():
                 black_key = self.black_keys_coords[key]
@@ -128,7 +136,7 @@ class PressedKeysDetectionPipeline:
         for i, fingertip in enumerate(fingertips):
             if found[i]:
                 continue
-            y, x = fingertip
+            y, x = fingertip.y, fingertip.x
 
             for key in self.white_keys_coords.keys():
                 white_key = self.white_keys_coords[key]
@@ -138,7 +146,6 @@ class PressedKeysDetectionPipeline:
                     keys_fingertips[key] = fingertip
                     found[i] = True
                     break
-        print(found, keys_fingertips, len(fingertips), len(keys_fingertips.keys()))
         return keys_fingertips
 
     def __extract_hands_and_fingers(self):
@@ -171,8 +178,9 @@ def main():
     params["video_path"] = "videos/video3.mp4"
     params["frame_per_second"] = 2
     params["keys_extraction_type"] = "lines"
-    params["hands_extraction_type"] = "same"
-    params["fingers_extraction_type"] = "mediapipe"
+    params["hands_extraction_type"] = "opencv"
+    params["fingers_extraction_type"] = "opencv"
+    params["pressed_key_extraction_type"] = "mediapipez"
     params["plot_fingertips"] = True
     params["plot_keys"] = True
     pipeline = PressedKeysDetectionPipeline(params)
