@@ -168,7 +168,7 @@ class PressedKeysDetectionPipeline:
 
 def main():
     params = {}
-    params["video_path"] = "videos/video3.mp4"
+    params["video_path"] = "C:\\Users\\Friday\\Desktop\\IACV PROJECT\\PianoPressedKeysDetection\\videos\\video1.mp4"
     params["frame_per_second"] = 2
     params["keys_extraction_type"] = "lines"
     params["hands_extraction_type"] = "same"

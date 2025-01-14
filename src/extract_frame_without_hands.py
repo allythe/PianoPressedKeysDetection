@@ -5,14 +5,6 @@ import matplotlib.pyplot as plt
 
 from logger import logger
 
-def calculate_mse(frame1, frame2):
-    """
-    Calculate Mean Squared Error (MSE) between two frames.
-    :param frame1: First frame (grayscale).
-    :param frame2: Second frame (grayscale).
-    :return: Mean Squared Error value.
-    """
-    return np.mean((frame1 - frame2) ** 2)
 
 class FramesExtractor:
     def __init__(self, frame_per_second, deviation_threshold=1.5, show_plots=True, save_frames=False):
@@ -58,7 +50,7 @@ class FramesExtractor:
         video_name = os.path.splitext(os.path.basename(video_path))[0]
 
         if self.save_frames:
-            output_dir = os.path.join("frames", video_name)
+            output_dir = os.path.join("C:\\Users\\Friday\\Desktop\\IACV PROJECT\\PianoPressedKeysDetection\\videos\\frames", video_name)
             os.makedirs(output_dir, exist_ok=True)
 
         # Open the video file
@@ -95,7 +87,6 @@ class FramesExtractor:
 
             frame_count += 1
 
-
         video_capture.release()
 
         # Calculate mean and standard deviation of all similarities
@@ -112,39 +103,6 @@ class FramesExtractor:
                     frame_filename = os.path.join(output_dir, f"frame_{i}.png")
                     cv2.imwrite(frame_filename, frames[i])
                 saved_frames.append(cv2.cvtColor(frames[i], cv2.COLOR_BGR2RGB))
-
-        # Calculate the average image from the saved frames
-        saved_frames_gray = [cv2.cvtColor(frame, cv2.COLOR_RGB2GRAY) for frame in saved_frames]
-        mean_frame = np.mean(saved_frames_gray, axis=0).astype(np.uint8)
-
-        # Filter saved frames based on their deviation from the average frame
-        filtered_frames = []
-        mse_threshold = 50  # Adjust this threshold as needed
-        for i, frame in enumerate(saved_frames_gray):
-            mse = calculate_mse(frame, mean_frame)
-            if mse < mse_threshold:
-                filtered_frames.append(saved_frames[i])  # Keep frames close to the average
-
-        saved_frames = filtered_frames
-        if self.show_plots:
-            # Plot the average frame
-            plt.figure(figsize=(10, 6))
-            plt.title("Average Frame (From Saved Frames)")
-            plt.imshow(mean_frame, cmap='gray')
-            plt.colorbar(label="Pixel Intensity")
-            plt.show()
-        
-            # Plot MSE values for saved frames
-            mse_values = [calculate_mse(frame, mean_frame) for frame in saved_frames_gray]
-            plt.figure(figsize=(10, 6))
-            plt.plot(range(len(mse_values)), mse_values, marker='o', color='purple', label='MSE with Average Frame')
-            plt.axhline(mse_threshold, color='red', linestyle='--', label='MSE Threshold')
-            plt.title("MSE of Saved Frames with Average Frame")
-            plt.xlabel("Frame Index")
-            plt.ylabel("MSE")
-            plt.legend()
-            plt.grid(True)
-            plt.show()
 
         if self.show_plots:
             # Plot similarity scores
