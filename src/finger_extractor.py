@@ -6,11 +6,29 @@ import numpy as np
 
 from src.logger import logger
 
+
 class Fingertip:
-    def __init__(self, x, y, z = None):
+    def __init__(self, x, y, z=None, prev_join_x=None, prev_join_y=None, idx=None, hand=None):
         self.x = x
         self.y = y
         self.z = z
+        self.prev_join_x = prev_join_x
+        self.prev_join_y = prev_join_y
+        self.press = False
+        self.idx = idx
+        self.hand = hand
+        self.dist = None
+
+        if self.prev_join_x is not None:
+            self.dist = ((self.x - self.prev_join_x) ** 2 +
+                         (self.y - self.prev_join_y) ** 2) ** 0.5
+
+    def set_press(self):
+        self.press = True
+
+    def get_press(self):
+        return self.press
+
 
 class FingerExtractorBase:
     def __init__(self):
@@ -113,6 +131,7 @@ class FingerExtractorMediaPipe(FingerExtractorBase):
     def __init__(self):
         super().__init__()
         self.fingertips_idx = [4, 8, 12, 16, 20]
+        self.fingertips_idx = [8, 12, 16]
 
     def __call__(self, image):
         mp_hands = mp.solutions.hands
@@ -131,13 +150,34 @@ class FingerExtractorMediaPipe(FingerExtractorBase):
 
             image_height, image_width, _ = image.shape
 
-            for hand_landmarks in results.multi_hand_landmarks:
+            for i, hand_landmarks in enumerate(results.multi_hand_landmarks):
                 for idx, landmark in enumerate(hand_landmarks.landmark):
                     if idx in self.fingertips_idx:
+                        prev_landmark = hand_landmarks.landmark[idx - 1]
                         fingertip = Fingertip(int(landmark.x * image_width),
                                               int(landmark.y * image_height),
-                                              landmark.z)
+                                              landmark.z,
+                                              (prev_landmark.x * image_width),
+                                              (prev_landmark.y * image_height),
+                                              idx,
+                                              i)
                         fingertips.append(fingertip)
+
+                # Draw the hand annotations on the image.
+            mp_drawing = mp.solutions.drawing_utils
+            mp_drawing_styles = mp.solutions.drawing_styles
+            image.flags.writeable = True
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            if results.multi_hand_landmarks:
+                for hand_landmarks in results.multi_hand_landmarks:
+                    mp_drawing.draw_landmarks(
+                        image,
+                        hand_landmarks,
+                        mp_hands.HAND_CONNECTIONS,
+                        mp_drawing_styles.get_default_hand_landmarks_style(),
+                        mp_drawing_styles.get_default_hand_connections_style())
+            # Flip the image horizontally for a selfie-view display.
+            # cv2.imshow('MediaPipe Hands', cv2.flip(image, 1))
 
         return fingertips
 
