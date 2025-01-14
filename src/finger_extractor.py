@@ -6,6 +6,11 @@ import numpy as np
 
 from src.logger import logger
 
+class Fingertip:
+    def __init__(self, x, y, z = None):
+        self.x = x
+        self.y = y
+        self.z = z
 
 class FingerExtractorBase:
     def __init__(self):
@@ -15,7 +20,7 @@ class FingerExtractorBase:
 
 class FingerExtractorOpencv(FingerExtractorBase):
     def __init__(self):
-        super.__init__()
+        super().__init__()
 
     def __call__(self, hand_mask):
         """
@@ -53,7 +58,8 @@ class FingerExtractorOpencv(FingerExtractorBase):
                             far = tuple(contour[f][0])
                             angle = self.calculate_angle(start, end, far)
                             if angle < np.pi / 2:  # Example threshold for angle
-                                fingertips.append(start)
+                                fingertip = Fingertip(start[0], start[1])
+                                fingertips.append(fingertip)
                 except cv2.error as e:
                     print(f"Error in convexityDefects: {e}")
                     # Skip this contour if it's invalid
@@ -62,7 +68,8 @@ class FingerExtractorOpencv(FingerExtractorBase):
             # Local Extrema Method
             local_extrema = self.find_local_extrema(contour)
             for point in local_extrema:
-                fingertips.append(point)
+                fingertip = Fingertip(point[0], point[1])
+                fingertips.append(fingertip)
 
         return fingertips
 
@@ -127,8 +134,10 @@ class FingerExtractorMediaPipe(FingerExtractorBase):
             for hand_landmarks in results.multi_hand_landmarks:
                 for idx, landmark in enumerate(hand_landmarks.landmark):
                     if idx in self.fingertips_idx:
-                        fingertips.append((int(landmark.y * image_height),
-                                           int(landmark.x * image_width)))
+                        fingertip = Fingertip(int(landmark.x * image_width),
+                                              int(landmark.y * image_height),
+                                              landmark.z)
+                        fingertips.append(fingertip)
 
         return fingertips
 

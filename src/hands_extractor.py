@@ -2,6 +2,7 @@ import os
 
 import cv2
 import numpy as np
+from matplotlib import pyplot as plt
 
 from src.logger import logger
 
@@ -14,7 +15,7 @@ class HandsExtractorBase:
 class HandsExtractorOpencv(HandsExtractorBase):
 
     def __init__(self, save_debug = False, show_plot = True):
-        super.__init__()
+        super().__init__()
         # Define the lower and upper bounds for the YCrCb color filter
         self.lower_ycrcb = np.array([0, 133, 77], dtype=np.uint8)
         self.upper_ycrcb = np.array([255, 173, 127], dtype=np.uint8)
@@ -32,12 +33,12 @@ class HandsExtractorOpencv(HandsExtractorBase):
         # 1. Arka plan çıkarımı
         diff = cv2.absdiff(frame, background)
 
-        diff_gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+        diff_gray = cv2.cvtColor(diff, cv2.COLOR_RGB2GRAY)
         diff_gray = cv2.GaussianBlur(diff_gray, (5, 5), 0)  # Gürültüyü azalt
         _, thresh = cv2.threshold(diff_gray, 50, 255, cv2.THRESH_BINARY)  # Daha yüksek eşik
 
         # 2. YCrCb renk filtresi
-        ycrcb = cv2.cvtColor(frame, cv2.COLOR_BGR2YCrCb)
+        ycrcb = cv2.cvtColor(frame, cv2.COLOR_RGB2YCrCb)
         mask = cv2.inRange(ycrcb, self.lower_ycrcb, self.upper_ycrcb)
 
         # 3. Maskeleri birleştir
