@@ -10,7 +10,8 @@ from src.hands_extractor import HandsExtractorOpencv, HandsExtractorSame
 from src.keys_extraction import KeysExtractorThroughLines
 from src.logger import logger
 from src.mp3_creator import create_mp3
-from src.pressed_key_extractor import PressedKeyExtractorMediaPipeZ, PressedKeyExtractorMediaPipeJoints
+from src.pressed_key_extractor import PressedKeyExtractorMediaPipeZ, PressedKeyExtractorMediaPipeJoints, \
+    PressedKeyExtractorClassifyImg
 
 
 def get_keys_extractor(type):
@@ -37,6 +38,8 @@ def get_pressed_key_extractor(type):
         return PressedKeyExtractorMediaPipeZ()
     elif type == "mediapipejoints":
         return PressedKeyExtractorMediaPipeJoints()
+    elif type == "classify":
+        return PressedKeyExtractorClassifyImg()
 
 
 class PressedKeysDetectionPipeline:
@@ -137,6 +140,7 @@ class PressedKeysDetectionPipeline:
 
                 if y_ul <= y <= y_dr and x_ul <= x <= x_dr:
                     keys_fingertips[key] = fingertip
+                    fingertip.key_name = key
                     found[i] = True
                     break
 
@@ -151,6 +155,7 @@ class PressedKeysDetectionPipeline:
 
                 if y_ul <= y <= y_dr and x_ul <= x <= x_dr:
                     keys_fingertips[key] = fingertip
+                    fingertip.key_name = key
                     found[i] = True
                     break
         return keys_fingertips
@@ -164,6 +169,7 @@ class PressedKeysDetectionPipeline:
             hands_mask = self.hands_extractor(frame, self.frame_without_hands)
             fingertips = self.fingers_extractor(hands_mask)
 
+            # keys_fingertips = { C_1 : Fingertip ,  A#_5: Fingertip }
             keys_fingertips = self.__find_fingertips_keys(fingertips)
             self.pressed_keys_extractor(keys_fingertips)
             # recurrent algorithm to extract pressed keys
@@ -172,7 +178,8 @@ class PressedKeysDetectionPipeline:
                 self.__plot_fingertips(frame, fingertips, keys_fingertips)
 
     def __extract_pressed_keys(self):
-        self.pressed_keys_history = self.pressed_keys_extractor.get_history()
+        self.pressed_keys_history = self.pressed_keys_extractor.get_history(self.white_keys_coords,
+                                        self.black_keys_coords, self.frames, self.frame_without_hands)
 
     def __create_mp3(self):
         self.logger.info("Creating mp3")
@@ -202,6 +209,7 @@ class PressedKeysDetectionPipeline:
 
         for i, frame in enumerate(self.frames):
             draw_frame = deepcopy(frame)
+            draw_frame = cv2.cvtColor(draw_frame, cv2.COLOR_RGB2BGR)
             history_step = self.pressed_keys_history[i]
             for key in history_step.keys():
                 if history_step[key].press == True:
@@ -217,19 +225,19 @@ class PressedKeysDetectionPipeline:
         self.__rotate_frames()
         self.__extract_hands_and_fingers()
         self.__extract_pressed_keys()
-        # self.__draw_video_pressed_keys()
-        self.__create_mp3()
+        self.__draw_video_pressed_keys()
+        # self.__create_mp3()
 
 
 def main():
     params = {}
     params["video_path"] = "videos/video3.mp4"
     params["frame_per_second"] = 20
-    params["max_number_frames"] = 300
+    params["max_number_frames"] = 1000
     params["keys_extraction_type"] = "lines"
     params["hands_extraction_type"] = "same"
     params["fingers_extraction_type"] = "mediapipe"
-    params["pressed_key_extraction_type"] = "mediapipejoints"
+    params["pressed_key_extraction_type"] = "classify"
     params["plot_fingertips"] = False
     params["plot_keys"] = False
     pipeline = PressedKeysDetectionPipeline(params)

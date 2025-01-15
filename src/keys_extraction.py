@@ -396,8 +396,7 @@ class KeysExtractorThroughLines:
                                          y_ul_b, x_ul_b, y_dr_b, x_dr_b, name_cur)
                     black_keys[name_cur] = black_key
 
-        for key in black_keys.keys():
-            print(black_keys[key].coords())
+
         return black_keys
 
     def _find_white_keys_w(self, image):

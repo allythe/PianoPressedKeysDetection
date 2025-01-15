@@ -8,7 +8,7 @@ from src.logger import logger
 
 
 class Fingertip:
-    def __init__(self, x, y, z=None, prev_join_x=None, prev_join_y=None, idx=None, hand=None):
+    def __init__(self, x, y, z=None, prev_join_x=None, prev_join_y=None, idx=None, hand=None, key_name = None):
         self.x = x
         self.y = y
         self.z = z
@@ -18,6 +18,7 @@ class Fingertip:
         self.idx = idx
         self.hand = hand
         self.dist = None
+        self.key_name = key_name
 
         if self.prev_join_x is not None:
             self.dist = ((self.x - self.prev_join_x) ** 2 +
@@ -131,7 +132,6 @@ class FingerExtractorMediaPipe(FingerExtractorBase):
     def __init__(self):
         super().__init__()
         self.fingertips_idx = [4, 8, 12, 16, 20]
-        self.fingertips_idx = [8, 12, 16]
 
     def __call__(self, image):
         mp_hands = mp.solutions.hands
