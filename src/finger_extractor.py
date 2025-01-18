@@ -178,6 +178,7 @@ class FingerExtractorMediaPipe(FingerExtractorBase):
                         mp_drawing_styles.get_default_hand_connections_style())
             # Flip the image horizontally for a selfie-view display.
             # cv2.imshow('MediaPipe Hands', cv2.flip(image, 1))
+            # cv2.waitKey(0)
 
         return fingertips
 

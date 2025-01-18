@@ -67,6 +67,7 @@ class KeysExtractorThroughLines:
         ref_piano = skimage.io.imread(ref_piano_path)
         self.ref_piano = cv2.cvtColor(ref_piano, cv2.COLOR_RGB2GRAY)
         self.logger.info("Keys Extractor created")
+        self.debug = True
 
     def rotate_image(self, image, angle):
         image_center = tuple(np.array(image.shape[1::-1]) / 2)
@@ -84,6 +85,8 @@ class KeysExtractorThroughLines:
 
         # find the biggest countour (c) by the area
         c = max(contours, key=cv2.contourArea)
+
+
 
         return image_gray, c
 
@@ -206,10 +209,13 @@ class KeysExtractorThroughLines:
         ref_piano_resh = cv2.resize(self.ref_piano, (ref_piano_new_w, ref_piano_new_h))
 
         result = match_template(patch, ref_piano_resh)
+
+
         res_max = np.max(result)
 
         mask = np.zeros_like(result)
         mask[result > res_max * 0.85] = 1
+
 
         peaks_coords_y, peaks_coords_x = np.where(mask == 1)
 
@@ -225,7 +231,7 @@ class KeysExtractorThroughLines:
 
             for j in range(20):
                 if np.mean(masked_piano[coord_y, coord_x - 5:coord_x + 5]) - np.mean(
-                        masked_piano[coord_y - j, coord_x - 5:coord_x + 5]) > 100:
+                        masked_piano[coord_y - j, coord_x - 5:coord_x + 5]) > 150:
                     coord_y = coord_y - j
                     break
             octave_coords_lu.append([coord_y, coord_x])
@@ -425,6 +431,7 @@ class KeysExtractorThroughLines:
         x_coords_dif = [x_coords[i + 1] - x_coords[i] for i in range(len(x_coords) - 1)]
         white_key_w = np.median(x_coords_dif)
 
+
         self.logger.info(f"The width of white key is {white_key_w}")
         return image, white_key_w
 
@@ -447,8 +454,12 @@ class KeysExtractorThroughLines:
         and black keys in the current image
         (the image should be without hands!) """
 
-        # simulate rotated image
-        # image = self.rotate_image(image, 25)
+
+
+        if self.debug:
+            # simulate rotated image
+            image = self.rotate_image(image, 0)
+
 
         to_draw_img = deepcopy(image)
 
@@ -460,6 +471,8 @@ class KeysExtractorThroughLines:
 
         # rotate image on this angle
         image = self.rotate_image(image, angle)
+
+
         to_draw_img = self.rotate_image(to_draw_img, angle)
 
         # find the new (angle is 0) piano contour

@@ -123,7 +123,7 @@ class PressedKeysDetectionPipeline:
             y_ul, x_ul, y_dr, x_dr = key.coords()
             cv2.rectangle(image, (x_ul, y_ul), (x_dr, y_dr), (0, 255, 0), 2)
 
-        cv2.imshow("keys", image)
+        cv2.imshow("keys", cv2.cvtColor(image, cv2.COLOR_RGB2BGR))
         cv2.waitKey(0)
 
     def __find_fingertips_keys(self, fingertips):
@@ -239,7 +239,7 @@ def main():
     params["fingers_extraction_type"] = "mediapipe"
     params["pressed_key_extraction_type"] = "classify"
     params["plot_fingertips"] = False
-    params["plot_keys"] = False
+    params["plot_keys"] = True
     pipeline = PressedKeysDetectionPipeline(params)
     pipeline()
 
