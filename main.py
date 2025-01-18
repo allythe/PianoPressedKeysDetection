@@ -10,6 +10,7 @@ from src.hands_extractor import HandsExtractorOpencv, HandsExtractorSame
 from src.keys_extraction import KeysExtractorThroughLines
 from src.logger import logger
 from src.mp3_creator import create_mp3
+from src.frame_without_hands_extractor import FrameWithoutHandsExtractor
 from src.pressed_key_extractor import PressedKeyExtractorMediaPipeZ, PressedKeyExtractorMediaPipeJoints, \
     PressedKeyExtractorClassifyImg
 
@@ -54,6 +55,7 @@ class PressedKeysDetectionPipeline:
 
         # lines extraction / mapping to the real piano shape
         self.frames_extractor = FramesExtractor(params["frame_per_second"], params["max_number_frames"])
+        self.frame_without_hands_extractor = FrameWithoutHandsExtractor()
 
         self.keys_extraction_type = params["keys_extraction_type"]
         self.keys_extractor = get_keys_extractor(self.keys_extraction_type)
@@ -74,11 +76,11 @@ class PressedKeysDetectionPipeline:
         self.logger.info(f"Extracted {len(self.frames)} frames from video {self.video_path}")
 
     def __extract_frame_without_hands(self):
-        # TODO: Refika
-        self.frame_without_hands = self.frames[10]
+        self.logger.info("Extracting frame without hands")
+        self.frame_without_hands = self.frame_without_hands_extractor(self.frames)
 
-        plt.imshow(self.frame_without_hands)
-        plt.show()
+        cv2.imshow("Frame without hands", cv2.cvtColor(self.frame_without_hands, cv2.COLOR_RGB2BGR))
+        cv2.waitKey()
 
     def __extract_keys(self):
         self.logger.info("Extracting keys coordinates")

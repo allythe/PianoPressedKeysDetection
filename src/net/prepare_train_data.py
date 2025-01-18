@@ -1,7 +1,7 @@
 import xml.etree.ElementTree as ET
 
 # Read XML content from a file
-file_path = '../../img/annotations.xml'  # Replace with the path to your XML file
+file_path = 'annotations.xml'  # Replace with the path to your XML file
 with open(file_path, 'r', encoding='utf-8') as file:
     xml_content = file.read()
 

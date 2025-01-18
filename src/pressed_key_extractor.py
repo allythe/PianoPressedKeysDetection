@@ -19,8 +19,9 @@ def build_feature_extractor():
     x = MaxPooling2D((2, 2))(x)
     x = Conv2D(128, (3, 3), activation='relu', padding='same')(x)
     x = MaxPooling2D((2, 2))(x)
+    x = Conv2D(64, (3, 3), activation='relu', padding='same')(x)
     x = Flatten()(x)
-    x = Dense(128, activation='relu')(x)
+    x = Dense(64, activation='relu')(x)
     return Model(inputs=input_layer, outputs=x)
 
 def preprocess_images(imgs, image_size):
@@ -289,7 +290,7 @@ class PressedKeyExtractorClassifyImg(PressedKeyExtractorBase):
 
 
         pred = self.model.predict([X1, X2])
-        pred = pred > 0.5
+        pred = pred > 0.3
 
         for i in range(len(pred)):
             if pred[i]==1:

@@ -229,8 +229,8 @@ class KeysExtractorThroughLines:
             coord_y = int(np.mean(peaks_coords_y[labels_octave == label])) + y
             coord_x = int(np.mean(peaks_coords_x[labels_octave == label])) + x
 
-            for j in range(20):
-                if np.mean(masked_piano[coord_y, coord_x - 5:coord_x + 5]) - np.mean(
+            for j in range(5):
+                if np.min(masked_piano[coord_y, coord_x - 5:coord_x + 5]) - np.min(
                         masked_piano[coord_y - j, coord_x - 5:coord_x + 5]) > 150:
                     coord_y = coord_y - j
                     break
