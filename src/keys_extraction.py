@@ -7,21 +7,7 @@ import skimage.io
 from skimage.feature import match_template
 from sklearn.cluster import DBSCAN
 
-"""
-1) find contours and select the biggest rectangle
-2) do it in the frequency domain?
-3) 
-    - find lines rectangle of the piano
-    - find lines 
-    - estimate number of white keys 
-    - find key points on the ideal piano
-    - map one into another?
- 
-"""
-
-"""
-check inv to rotation, scale
-"""
+from src.logger import logger
 
 
 class Key:
@@ -75,7 +61,13 @@ key_names = {
 
 class KeysExtractorThroughLines:
     def __init__(self):
-        pass
+        self.logger = logger
+
+        ref_piano_path = "src/octava.png"
+        ref_piano = skimage.io.imread(ref_piano_path)
+        self.ref_piano = cv2.cvtColor(ref_piano, cv2.COLOR_RGB2GRAY)
+        self.logger.info("Keys Extractor created")
+        self.debug = True
 
     def rotate_image(self, image, angle):
         image_center = tuple(np.array(image.shape[1::-1]) / 2)
@@ -84,7 +76,7 @@ class KeysExtractorThroughLines:
         return result
 
     def _find_piano_contour(self, image):
-        image_gray = cv2.cvtColor(image, cv2.COLOR_BGR2GRAY)
+        image_gray = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
         mask = cv2.adaptiveThreshold(image_gray, 255,
                                      cv2.ADAPTIVE_THRESH_MEAN_C, cv2.THRESH_BINARY_INV, 21, 10)
 
@@ -94,6 +86,8 @@ class KeysExtractorThroughLines:
         # find the biggest countour (c) by the area
         c = max(contours, key=cv2.contourArea)
 
+
+
         return image_gray, c
 
     def _draw_contour(self, image, c):
@@ -101,9 +95,6 @@ class KeysExtractorThroughLines:
 
         # draw the biggest contour (c) in green
         cv2.rectangle(image, (x, y), (x + w, y + h), (0, 255, 0), 2)
-        # cv2.imshow("biggest contour", image)
-        # cv2.waitKey(0)
-
         return x, y, w, h
 
     def _create_piano_masked(self, image, c):
@@ -123,8 +114,8 @@ class KeysExtractorThroughLines:
         if w > h:
             angle = 90 + angle
 
-        print(f"Found h of contour is {np.round(h, 2)} px, width is {np.round(w, 2)} px")
-        print(f"Found angle of contour is {np.round(angle, 2)} degrees")
+        self.logger.debug(f"Found h of contour is {np.round(h, 2)} px, width is {np.round(w, 2)} px")
+        self.logger.debug(f"Found angle of contour is {np.round(angle, 2)} degrees")
 
         return angle
         # box = cv2.boxPoints(rect)
@@ -164,7 +155,7 @@ class KeysExtractorThroughLines:
                                  True, 255, 3, cv2.LINE_AA)
 
         else:
-            print("Not enough matches are found - {}/{}".format(len(good), 10))
+            self.logger.debug("Not enough matches are found - {}/{}".format(len(good), 10))
             matchesMask = None
 
         draw_params = dict(matchColor=(0, 255, 0),  # draw matches in green color
@@ -206,22 +197,26 @@ class KeysExtractorThroughLines:
 
         return score
 
-    def _find_white_keys_coords(self, masked_piano, ref_piano, x, y, w, h, white_key_w):
+    def _find_white_keys_coords(self, masked_piano, x, y, w, h, white_key_w):
         keys_dict = {}
         patch = masked_piano[y:y + h, x:x + w, ...]
         patch = cv2.adaptiveThreshold(patch, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
                                       cv2.THRESH_BINARY, 199, 5)
 
-        ref_piano_h, ref_piano_w = ref_piano.shape[:2]
+        ref_piano_h, ref_piano_w = self.ref_piano.shape[:2]
         ref_piano_new_w = int(white_key_w * 7)
         ref_piano_new_h = int(ref_piano_h * (ref_piano_new_w / ref_piano_w))
-        ref_piano_resh = cv2.resize(ref_piano, (ref_piano_new_w, ref_piano_new_h))
+        ref_piano_resh = cv2.resize(self.ref_piano, (ref_piano_new_w, ref_piano_new_h))
 
         result = match_template(patch, ref_piano_resh)
+
+
         res_max = np.max(result)
 
         mask = np.zeros_like(result)
         mask[result > res_max * 0.85] = 1
+
+
         peaks_coords_y, peaks_coords_x = np.where(mask == 1)
 
         peaks_coords = np.array(list(zip(peaks_coords_y, peaks_coords_x)))
@@ -234,9 +229,9 @@ class KeysExtractorThroughLines:
             coord_y = int(np.mean(peaks_coords_y[labels_octave == label])) + y
             coord_x = int(np.mean(peaks_coords_x[labels_octave == label])) + x
 
-            for j in range(20):
-                if np.mean(masked_piano[coord_y, coord_x - 5:coord_x + 5]) / np.mean(
-                        masked_piano[coord_y - j, coord_x - 5:coord_x + 5]) > 2:
+            for j in range(5):
+                if np.min(masked_piano[coord_y, coord_x - 5:coord_x + 5]) - np.min(
+                        masked_piano[coord_y - j, coord_x - 5:coord_x + 5]) > 150:
                     coord_y = coord_y - j
                     break
             octave_coords_lu.append([coord_y, coord_x])
@@ -257,7 +252,7 @@ class KeysExtractorThroughLines:
                     break
         h_keys = int(np.median(y_coord_bottom_keys) - np.median(octave_coords_lu[:, 0]))
 
-        print(f"Found height of white keys is {h_keys}")
+        self.logger.info(f"Found height of white keys is {h_keys}")
 
         all_white_keys_coords = []
         num_octave = 1
@@ -402,10 +397,11 @@ class KeysExtractorThroughLines:
                     if cur_dif > max_dif:
                         max_dif = cur_dif
                         x_dr_b = x_dr_b + i
+                if y_dr_b > 0:
+                    black_key = BlackKey(masked_piano[y_ul_b: y_dr_b, x_ul_b:x_dr_b],
+                                         y_ul_b, x_ul_b, y_dr_b, x_dr_b, name_cur)
+                    black_keys[name_cur] = black_key
 
-                black_key = BlackKey(masked_piano[y_ul_b: y_dr_b, x_ul_b:x_dr_b],
-                                     y_ul_b, x_ul_b, y_dr_b, x_dr_b, name_cur)
-                black_keys[name_cur] = black_key
 
         return black_keys
 
@@ -433,20 +429,11 @@ class KeysExtractorThroughLines:
 
         x_coords = np.sort(x_coords)
         x_coords_dif = [x_coords[i + 1] - x_coords[i] for i in range(len(x_coords) - 1)]
-        white_key_w = np.mean(x_coords_dif)
+        white_key_w = np.median(x_coords_dif)
 
-        print(f"The width of white key is {white_key_w}")
+
+        self.logger.info(f"The width of white key is {white_key_w}")
         return image, white_key_w
-
-    def _draw_keys_coords(self, keys_dict, image):
-        for key_name in keys_dict.keys():
-            key = keys_dict[key_name]
-            y_ul, x_ul, y_dr, x_dr = key.coords()
-            print(key_name, key.coords())
-            cv2.rectangle(image, (x_ul, y_ul), (x_dr, y_dr), (0, 255, 0), 2)
-
-            cv2.imshow("white keys", image)
-            cv2.waitKey(0)
 
     def _find_orientation(self, image, y, h):
         mask = cv2.adaptiveThreshold(image, 255,
@@ -461,14 +448,18 @@ class KeysExtractorThroughLines:
 
         return True
 
-    def __call__(self, image: np.ndarray, ref_piano: np.ndarray):
+    def __call__(self, image: np.ndarray):
         """
         this method will return coordinates of white
         and black keys in the current image
         (the image should be without hands!) """
 
-        # simulate rotated image
-        image = self.rotate_image(image, 25)
+
+
+        if self.debug:
+            # simulate rotated image
+            image = self.rotate_image(image, 0)
+
 
         to_draw_img = deepcopy(image)
 
@@ -480,6 +471,8 @@ class KeysExtractorThroughLines:
 
         # rotate image on this angle
         image = self.rotate_image(image, angle)
+
+
         to_draw_img = self.rotate_image(to_draw_img, angle)
 
         # find the new (angle is 0) piano contour
@@ -497,24 +490,20 @@ class KeysExtractorThroughLines:
         if not is_correct_orientation:
             masked_piano = self.rotate_image(masked_piano, 180)
             to_draw_img = self.rotate_image(to_draw_img, 180)
+            angle += 180
 
         # find width of the white key
         masked_piano, white_key_w = self._find_white_keys_w(masked_piano)
 
         # find coordinates of white keys
-        white_keys_coords, white_key_h = self._find_white_keys_coords(masked_piano, ref_piano, x, y, w, h, white_key_w)
+        white_keys_coords, white_key_h = self._find_white_keys_coords(masked_piano, x, y, w, h, white_key_w)
         # self._draw_keys_coords(white_keys_coords, to_draw_img)
 
         # find h and w of black keys
         black_key_w = self._find_black_keys_w(masked_piano, x, y, w, h, white_key_h, white_keys_coords)
         black_keys_coords = self._find_black_keys_coords(masked_piano, black_key_w, white_keys_coords)
 
-        self._draw_keys_coords(white_keys_coords, to_draw_img)
-        self._draw_keys_coords(black_keys_coords, to_draw_img)
-
-        coordinates = None
-
-        return coordinates
+        return white_keys_coords, black_keys_coords, angle
 
 
 def main():
@@ -526,11 +515,7 @@ def main():
     img_path = "../src/frames/video1/frame_7.png"
     image = skimage.io.imread(img_path)
 
-    ref_piano_path = "octava.png"
-    ref_piano = skimage.io.imread(ref_piano_path)
-    ref_piano = cv2.cvtColor(ref_piano, cv2.COLOR_BGR2GRAY)
-
-    keys_extractor(image, ref_piano)
+    keys_extractor(image)
 
 
 if __name__ == "__main__":

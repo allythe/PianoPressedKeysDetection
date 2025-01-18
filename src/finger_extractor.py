@@ -1,12 +1,47 @@
-import cv2
-import numpy as np
 import os
 
-class FingerExtractor:
-    def __init__(self):
-        pass
+import cv2
+import mediapipe as mp
+import numpy as np
 
-    def extract_fingers(self, hand_mask):
+from src.logger import logger
+
+
+class Fingertip:
+    def __init__(self, x, y, z=None, prev_join_x=None, prev_join_y=None, idx=None, hand=None, key_name = None):
+        self.x = x
+        self.y = y
+        self.z = z
+        self.prev_join_x = prev_join_x
+        self.prev_join_y = prev_join_y
+        self.press = False
+        self.idx = idx
+        self.hand = hand
+        self.dist = None
+        self.key_name = key_name
+
+        if self.prev_join_x is not None:
+            self.dist = ((self.x - self.prev_join_x) ** 2 +
+                         (self.y - self.prev_join_y) ** 2) ** 0.5
+
+    def set_press(self):
+        self.press = True
+
+    def get_press(self):
+        return self.press
+
+
+class FingerExtractorBase:
+    def __init__(self):
+        self.logger = logger
+        self.logger.info("Hands Extractor created")
+
+
+class FingerExtractorOpencv(FingerExtractorBase):
+    def __init__(self):
+        super().__init__()
+
+    def __call__(self, hand_mask):
         """
         Extract fingertip coordinates from the given hand mask with noise reduction.
 
@@ -42,7 +77,8 @@ class FingerExtractor:
                             far = tuple(contour[f][0])
                             angle = self.calculate_angle(start, end, far)
                             if angle < np.pi / 2:  # Example threshold for angle
-                                fingertips.append(start)
+                                fingertip = Fingertip(start[0], start[1])
+                                fingertips.append(fingertip)
                 except cv2.error as e:
                     print(f"Error in convexityDefects: {e}")
                     # Skip this contour if it's invalid
@@ -51,11 +87,10 @@ class FingerExtractor:
             # Local Extrema Method
             local_extrema = self.find_local_extrema(contour)
             for point in local_extrema:
-                fingertips.append(point)
+                fingertip = Fingertip(point[0], point[1])
+                fingertips.append(fingertip)
 
         return fingertips
-
-
 
     def find_local_extrema(self, contour):
         """
@@ -89,8 +124,63 @@ class FingerExtractor:
         a = np.linalg.norm(np.array(pt1) - np.array(pt3))
         b = np.linalg.norm(np.array(pt2) - np.array(pt3))
         c = np.linalg.norm(np.array(pt1) - np.array(pt2))
-        angle = np.arccos((a**2 + b**2 - c**2) / (2 * a * b))
+        angle = np.arccos((a ** 2 + b ** 2 - c ** 2) / (2 * a * b))
         return angle
+
+
+class FingerExtractorMediaPipe(FingerExtractorBase):
+    def __init__(self):
+        super().__init__()
+        self.fingertips_idx = [4, 8, 12, 16, 20]
+
+    def __call__(self, image):
+        mp_hands = mp.solutions.hands
+
+        fingertips = []
+        with mp_hands.Hands(
+                static_image_mode=True,
+                max_num_hands=2,
+                model_complexity=0,
+                min_detection_confidence=0.5) as hands:
+
+            results = hands.process(image)
+
+            if not results.multi_hand_landmarks:
+                return fingertips
+
+            image_height, image_width, _ = image.shape
+
+            for i, hand_landmarks in enumerate(results.multi_hand_landmarks):
+                for idx, landmark in enumerate(hand_landmarks.landmark):
+                    if idx in self.fingertips_idx:
+                        prev_landmark = hand_landmarks.landmark[idx - 1]
+                        fingertip = Fingertip(int(landmark.x * image_width),
+                                              int(landmark.y * image_height),
+                                              landmark.z,
+                                              (prev_landmark.x * image_width),
+                                              (prev_landmark.y * image_height),
+                                              idx,
+                                              i)
+                        fingertips.append(fingertip)
+
+                # Draw the hand annotations on the image.
+            mp_drawing = mp.solutions.drawing_utils
+            mp_drawing_styles = mp.solutions.drawing_styles
+            image.flags.writeable = True
+            image = cv2.cvtColor(image, cv2.COLOR_RGB2BGR)
+            if results.multi_hand_landmarks:
+                for hand_landmarks in results.multi_hand_landmarks:
+                    mp_drawing.draw_landmarks(
+                        image,
+                        hand_landmarks,
+                        mp_hands.HAND_CONNECTIONS,
+                        mp_drawing_styles.get_default_hand_landmarks_style(),
+                        mp_drawing_styles.get_default_hand_connections_style())
+            # Flip the image horizontally for a selfie-view display.
+            # cv2.imshow('MediaPipe Hands', cv2.flip(image, 1))
+            # cv2.waitKey(0)
+
+        return fingertips
 
 
 def process_masks(video_name):
@@ -119,7 +209,7 @@ def process_masks(video_name):
         os.makedirs(visualization_dir)
 
     # Initialize the FingerExtractor
-    finger_extractor = FingerExtractor()
+    finger_extractor = FingerExtractorOpencv()
 
     # Process each mask in the masks directory
     with open(output_file, "w") as f:
