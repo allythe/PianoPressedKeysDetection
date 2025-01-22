@@ -69,12 +69,12 @@ class PianoExtractor:
 
         self.skin_cluster_counts.append(cluster_count)
 
-        if self.show_plots:
+        """if self.show_plots:
             plt.figure(figsize=(6, 6))
             plt.imshow(skin_mask, cmap='gray')
             plt.title(f"Detected Skin Clusters: {cluster_count}")
             plt.axis("off")
-            plt.show()
+            plt.show()"""
 
         return cluster_count
 
