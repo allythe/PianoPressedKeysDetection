@@ -17,6 +17,191 @@ class PianoExtractor:
         self.piano_region = None
         self.skin_cluster_counts = []
 
+    def detect_piano_region_with_visualization(self, frame):
+        """
+        Automatically detects the piano region using preprocessing steps and visualizes each step.
+        :param frame: Input video frame.
+        :return: Coordinates of the piano region (x, y, w, h).
+        """
+        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+        blurred_frame = cv2.GaussianBlur(gray_frame , (5, 5), 0)
+        edges = cv2.Canny(blurred_frame, 50, 150)
+
+        # Apply dilation to enhance edges
+        kernel = np.ones((5, 5), np.uint8)
+        dilated_edges = cv2.dilate(edges, kernel, iterations=1)
+
+        contours, _ = cv2.findContours(dilated_edges, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+
+        max_area = 0
+        best_rect = None
+
+        for contour in contours:
+            x, y, w, h = cv2.boundingRect(contour)
+            aspect_ratio = w / h
+
+            # Improved filtering criteria
+            if 2 < aspect_ratio < 15 and w > 300 and h > 50 and y > 50:
+                area = w * h
+                if area > max_area and self.filter_piano_keys_by_color(frame, (x, y, w, h)):
+                    max_area = area
+                    best_rect = (x, y , w, h)
+
+        if best_rect is None:
+            raise ValueError("Piano region could not be detected automatically.")
+
+        self.visualize_piano_detection_steps(frame, gray_frame, blurred_frame, dilated_edges, contours, best_rect)
+        
+        return best_rect,dilated_edges
+
+    
+    def filter_piano_keys_by_color(self, frame, region):
+        """
+        Filters detected region based on piano key colors.
+        :param frame: Input video frame.
+        :param region: Region of interest (x, y, w, h).
+        :return: True if the region contains piano keys, else False.
+        """
+        x, y, w, h = region
+        roi = frame[y:y+h, x:x+w]
+
+        hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
+
+        lower_white = np.array([0, 0, 180], dtype=np.uint8)
+        upper_white = np.array([180, 50, 255], dtype=np.uint8)
+
+        white_mask = cv2.inRange(hsv, lower_white, upper_white)
+        white_ratio = cv2.countNonZero(white_mask) / (w * h)
+
+        # Check if the detected region has both black and white keys
+        lower_black = np.array([0, 0, 0], dtype=np.uint8)
+        upper_black = np.array([180, 255, 50], dtype=np.uint8)
+        black_mask = cv2.inRange(hsv, lower_black, upper_black)
+        black_ratio = cv2.countNonZero(black_mask) / (w * h)
+
+        total_ratio = white_ratio + black_ratio
+
+        # Visualize the detected region and mask
+        if self.show_plots:
+            plt.figure(figsize=(10, 5))
+            plt.subplot(1, 2, 1)
+            plt.imshow(cv2.cvtColor(roi, cv2.COLOR_BGR2RGB))
+            plt.title("Detected Region (ROI)")
+            plt.axis("off")
+
+            plt.subplot(1, 2, 2)
+            plt.imshow(white_mask + black_mask, cmap='gray')
+            plt.title(f"White/Black Key Mask (Coverage: {total_ratio:.2f})")
+            plt.axis("off")
+            plt.suptitle("Piano Key Color Detection", fontsize=16)
+            plt.show()
+
+        return white_ratio > 0.15 and black_ratio > 0.05  # Ensure detection includes both black and white keys
+
+    def refine_piano_region_with_pattern(self, frame, dilated_edges, best_rect):
+        """
+        Refines the detected piano region by identifying key patterns in the dilated edge image.
+        :param frame: Input video frame.
+        :param dilated_edges: Edge-detected and dilated image.
+        :param best_rect: Initial detected piano bounding box (x, y, w, h).
+        :return: Refined bounding box (x, y, w, h).
+        """
+        x, y, w, h = best_rect
+        roi = dilated_edges[y:y+h, x:x+w]
+
+        # Step 1: Perform vertical projection
+        vertical_projection = np.sum(roi, axis=0)
+
+        # Step 2: Detect peaks (white key boundaries)
+        threshold = np.max(vertical_projection) * 0.5
+        key_positions = np.where(vertical_projection > threshold)[0]
+
+        if len(key_positions) > 0:
+            new_x = key_positions[0] + x
+            new_w = key_positions[-1] - key_positions[0]
+        else:
+            new_x, new_w = x, w
+
+        # Step 3: Apply a horizontal projection to further refine the region
+        horizontal_projection = np.sum(roi, axis=1)
+        key_rows = np.where(horizontal_projection > np.max(horizontal_projection) * 0.5)[0]
+
+        if len(key_rows) > 0:
+            new_y = key_rows[0] + y
+            new_h = key_rows[-1] - key_rows[0]
+        else:
+            new_y, new_h = y, h
+
+        refined_rect = (new_x, new_y, new_w, new_h)
+
+        # Visualization of the refined region
+        cv2.rectangle(frame, (new_x, new_y), (new_x + new_w, new_y + new_h), (0, 255, 255), 2)
+        
+        plt.figure(figsize=(10, 5))
+        plt.subplot(1, 2, 1)
+        plt.imshow(cv2.cvtColor(frame[y:y+h, x:x+w], cv2.COLOR_BGR2RGB))
+        plt.title("Original Detected Region")
+        plt.axis("off")
+
+        plt.subplot(1, 2, 2)
+        plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        plt.title("Refined Piano Region")
+        plt.axis("off")
+        plt.show()
+
+        return refined_rect
+
+
+
+
+    def visualize_piano_detection_steps(self, frame, gray_frame, blurred_frame, edges, contours, piano_region):
+        """
+        Visualizes different stages of the piano region detection process.
+        """
+        x, y, w, h = piano_region
+        annotated_frame = frame.copy()
+        cv2.rectangle(annotated_frame, (x, y), (x + w, y + h), (0, 255, 0), 2)
+
+        plt.figure(figsize=(15, 8))
+
+        plt.subplot(2, 3, 1)
+        plt.imshow(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
+        plt.title("Original Frame")
+        plt.axis("off")
+
+        plt.subplot(2, 3, 2)
+        plt.imshow(gray_frame, cmap='gray')
+        plt.title("Grayscale Conversion")
+        plt.axis("off")
+
+        plt.subplot(2, 3, 3)
+        plt.imshow(blurred_frame, cmap='gray')
+        plt.title("Gaussian Blur")
+        plt.axis("off")
+
+        plt.subplot(2, 3, 4)
+        plt.imshow(edges, cmap='gray')
+        plt.title("Dilated Edge Detection")
+        plt.axis("off")
+
+        plt.subplot(2, 3, 5)
+        contours_frame = np.zeros_like(gray_frame)
+        cv2.drawContours(contours_frame, contours, -1, (255, 255, 255), 1)
+        plt.imshow(contours_frame, cmap='gray')
+        plt.title("Contour Detection")
+        plt.axis("off")
+
+        plt.subplot(2, 3, 6)
+        plt.imshow(cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB))
+        plt.title("Final Detected Region")
+        plt.axis("off")
+
+        plt.suptitle("Piano Detection Process", fontsize=16)
+        plt.show()
+
+
+
+
     def get_piano_region(self, frame):
         """
         Determines the piano region either manually or automatically.
@@ -27,7 +212,9 @@ class PianoExtractor:
             print("Selecting piano region manually...")
             return self.select_piano_region(frame)
         else:
-            return self.detect_piano_region(frame)
+            best_rect,dialeted_edges = self.detect_piano_region_with_visualization(frame)
+            refined_rect = self.refine_piano_region_with_pattern(frame, dialeted_edges, best_rect)
+            return refined_rect
 
     def select_piano_region(self, frame):
         """
@@ -156,7 +343,7 @@ def main():
     frames = [cv2.imread(frame_path) for frame_path in frame_paths]
 
     # Initialize the PianoExtractor
-    extractor = PianoExtractor(manual=True, show_plots=True, mse_threshold=50)
+    extractor = PianoExtractor(manual=False, show_plots=True, mse_threshold=50)
 
     # Extract a clear piano frame from the frames list
     try:
