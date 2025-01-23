@@ -4,7 +4,7 @@ import os
 import matplotlib.pyplot as plt
 
 class PianoExtractor:
-    def __init__(self, manual=True, show_plots=False, mse_threshold=50):
+    def __init__(self, manual=True, show_plots=True, mse_threshold=50):
         """
         Initializes the PianoExtractor.
         :param manual: If True, allows manual piano region selection.

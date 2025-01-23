@@ -15,7 +15,7 @@ def calculate_mse(frame1, frame2):
     return np.mean((frame1 - frame2) ** 2)
 
 class FramesExtractor:
-    def __init__(self, frame_per_second, deviation_threshold=1.5, show_plots=True, save_frames=False):
+    def __init__(self, frame_per_second, deviation_threshold=1.5, show_plots=True,save_frames=True):
         """
         Initializes the FramesExtractor.
 
@@ -132,7 +132,7 @@ class FramesExtractor:
 
         # Save the final filtered frames
         if True:
-            output_dir = os.path.join("frames", video_name)
+            output_dir = os.path.join("frames2", video_name)
             cleaned_output_dir = os.path.join(output_dir, "cleaned")
             os.makedirs(cleaned_output_dir, exist_ok=True)
             for idx, frame in enumerate(filtered_frames):
