@@ -8,28 +8,28 @@ class FingerExtractor:
 
 
         def extract_hands_mask(self, frame, background):
-        """
-        Extract a binary mask of hands from the given frame.
-        Args:
-            frame (numpy.ndarray): The current frame of the video.
-            background (numpy.ndarray): The static background image without hands.
-        Returns:
-            numpy.ndarray: A binary mask where hands are white (255) and the rest is black (0).
-        """
-        # 1. Background subtraction to isolate moving objects (hands)
-        diff = cv2.absdiff(frame, background)
-        diff_gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
-        _, thresh = cv2.threshold(diff_gray, 30, 255, cv2.THRESH_BINARY)
-        # 2. Apply a YCrCb color filter to isolate skin tones
-        ycrcb = cv2.cvtColor(frame, cv2.COLOR_BGR2YCrCb)
-        mask = cv2.inRange(ycrcb, self.lower_ycrcb, self.upper_ycrcb)
-        # 3. Combine the background subtraction mask and the color filter mask
-        combined_mask = cv2.bitwise_and(thresh, mask)
-        # 4. Apply morphological operations (erosion and dilation) to reduce noise
-        kernel = np.ones((5, 5), np.uint8)
-        combined_mask = cv2.erode(combined_mask, kernel, iterations=1)
-        combined_mask = cv2.dilate(combined_mask, kernel, iterations=1)
-        return combined_mask
+            """
+            Extract a binary mask of hands from the given frame.
+            Args:
+                frame (numpy.ndarray): The current frame of the video.
+                background (numpy.ndarray): The static background image without hands.
+            Returns:
+                numpy.ndarray: A binary mask where hands are white (255) and the rest is black (0).
+            """
+            # 1. Background subtraction to isolate moving objects (hands)
+            diff = cv2.absdiff(frame, background)
+            diff_gray = cv2.cvtColor(diff, cv2.COLOR_BGR2GRAY)
+            _, thresh = cv2.threshold(diff_gray, 30, 255, cv2.THRESH_BINARY)
+            # 2. Apply a YCrCb color filter to isolate skin tones
+            ycrcb = cv2.cvtColor(frame, cv2.COLOR_BGR2YCrCb)
+            mask = cv2.inRange(ycrcb, self.lower_ycrcb, self.upper_ycrcb)
+            # 3. Combine the background subtraction mask and the color filter mask
+            combined_mask = cv2.bitwise_and(thresh, mask)
+            # 4. Apply morphological operations (erosion and dilation) to reduce noise
+            kernel = np.ones((5, 5), np.uint8)
+            combined_mask = cv2.erode(combined_mask, kernel, iterations=1)
+            combined_mask = cv2.dilate(combined_mask, kernel, iterations=1)
+            return combined_mask
 
     def extract_fingers(self, hand_mask):
         """
